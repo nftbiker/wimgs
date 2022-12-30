@@ -6,6 +6,14 @@
 #
 # tested on Ruby 2.0.  Should work on 1.9.3 as well.
 
+require 'bundler/inline'
+
+gemfile do
+  source 'https://rubygems.org'
+  gem 'mediawiki_api'
+  gem 'sqlite3'
+end
+
 require 'rubygems'
 require 'getoptlong'
 require 'mediawiki_api'
@@ -53,7 +61,7 @@ To report issues or contribute to the code, see http://github.com/abartov/wimgs
 end
 def valid_config?(dbcfg, cfg, mode)
   return false if dbcfg[:mode] != mode
-  [:wiki, :list, :width, :imgdir, :dbname].each {|s| return false if dbcfg[s] != cfg[s] }
+  [:wiki, :list, :width, :imgdir].each {|s| return false if dbcfg[s] != cfg[s] }
   return true
 end
 
@@ -73,6 +81,7 @@ def prepare_db(cfg, mode)
   if config_exists
     # read config and compare to command line
     dbcfg = db.get_first_row("SELECT * FROM config;")
+    dbcfg = dbcfg.to_h.transform_keys(&:to_sym)
     clobber = true unless valid_config?(dbcfg, cfg, mode)
     if mode == 'articles'
       clobber = true if db.get_first_row("SELECT * FROM sqlite_master WHERE name ='articles' and type='table';").nil?
@@ -144,7 +153,7 @@ def get_image(mw, cfg, img)
     end
     ii = mw.prop(:imageinfo, opts)
     url = ii.data["pages"][ii.data["pages"].keys[0]]["imageinfo"][0][key] # if actual width <= cfg[:width], the original image would be in thumburl
-    cmdline = "wget -O \"#{outfile}\" #{url}"
+    cmdline = "wget -q --show-progress -O \"#{outfile}\" #{url}"
     system(cmdline)
     return nil unless $?.success?
     img['filepath'] = outfile
